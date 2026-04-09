@@ -1,0 +1,22 @@
+{
+  "name": "RandevuDunyasi",
+  "short_name": "RandevuDunyasi",
+  "description": "Türkiye'nin Online Randevu Platformu",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#006B5A",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
