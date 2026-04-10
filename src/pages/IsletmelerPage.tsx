@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, MapPin, Star, CheckCircle, SlidersHorizontal } from "lucide-react";
+import { Search, MapPin, Star, CheckCircle, SlidersHorizontal, Zap } from "lucide-react";
 import { useState, useEffect } from "react";
 import { turkiyeIller } from "@/lib/turkey-locations";
 import { getBusinesses } from "@/lib/api";
@@ -67,6 +67,11 @@ const IsletmelerPage = () => {
   const filteredBusinesses = businesses
     .filter((b) => !minRating || b.rating >= Number(minRating))
     .sort((a, b) => {
+      // Always prioritize featured businesses
+      if (a.is_featured !== b.is_featured) {
+        return b.is_featured ? 1 : -1;
+      }
+      
       if (sortBy === "rating") return (b.rating || 0) - (a.rating || 0);
       if (sortBy === "review_count") return (b.review_count || 0) - (a.review_count || 0);
       if (sortBy === "name") return (a.name || "").localeCompare(b.name || "", "tr");
@@ -192,10 +197,9 @@ const IsletmelerPage = () => {
                         <h3 className="font-semibold text-foreground group-hover:text-accent transition-colors">
                           {biz.name}
                         </h3>
-                        <span className="text-sm font-semibold text-primary">{biz.category}</span>
                         {biz.is_featured && (
-                          <Badge className="ml-2 bg-accent text-accent-foreground border-none">
-                            <Star className="w-3 h-3 mr-1 fill-current" /> Öne Çıkan
+                          <Badge className="bg-amber-500 text-white border-none shadow-lg animate-pulse">
+                            <Zap className="w-3 h-3 mr-1 fill-current" /> Öne Çıkan
                           </Badge>
                         )}
                       </div>

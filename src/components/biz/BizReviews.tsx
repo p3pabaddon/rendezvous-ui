@@ -36,6 +36,7 @@ export function BizReviews({ reviews, onRefresh }: Props) {
       onRefresh();
     } catch (error) {
       console.error("Reply error:", error);
+      alert("Yorum gönderilirken hata oluştu: " + ((error as any)?.message || "Bilinmeyen hata"));
     } finally {
       setLoading(false);
     }
@@ -89,7 +90,7 @@ export function BizReviews({ reviews, onRefresh }: Props) {
       <div className="lg:col-span-3 bg-[#0f172a]/50 backdrop-blur-md border border-slate-800 rounded-3xl overflow-hidden flex flex-col h-[700px]">
          <div className="p-8 border-b border-slate-800 flex items-center justify-between bg-slate-950/20 sticky top-0 z-10">
             <h3 className="font-bold text-white flex items-center gap-3 lowercase tracking-widest">
-               <MessageSquare className="w-5 h-5 text-primary" /> FEEDBACK_STREAM
+               <MessageSquare className="w-5 h-5 text-primary" /> YORUM AKIŞI
             </h3>
          </div>
 
@@ -136,7 +137,7 @@ export function BizReviews({ reviews, onRefresh }: Props) {
                         <button className="flex items-center gap-2 text-[10px] font-bold text-slate-500 hover:text-white transition-colors"><ShieldAlert className="w-4 h-4" /> RAPOR ET</button>
                      </div>
                      
-                     {replyId === rev.id ? (
+                     {replyId === (rev.id || i.toString()) ? (
                         <div className="flex-1 flex gap-2 ml-4">
                            <Input 
                              value={replyText}

@@ -16,9 +16,10 @@ interface Props {
   services: any[];
   staff: any[];
   onRefresh: () => void;
+  personnelLimit: number;
 }
 
-export function BizCatalog({ businessId, services, staff, onRefresh }: Props) {
+export function BizCatalog({ businessId, services, staff, onRefresh, personnelLimit }: Props) {
   const [activeSubTab, setActiveSubTab] = useState<"services" | "staff">("services");
   const [loading, setLoading] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -46,6 +47,13 @@ export function BizCatalog({ businessId, services, staff, onRefresh }: Props) {
 
   const handleAddOrUpdate = async () => {
     if (!name) return;
+    
+    // Personnel Limit Check
+    if (activeSubTab === "staff" && !editId && staff.length >= personnelLimit) {
+      alert(`Personel limitine ulaştınız (${personnelLimit}). Daha fazla personel eklemek için Pro pakete geçmelisiniz.`);
+      return;
+    }
+
     setLoading(true);
     try {
       if (activeSubTab === "services") {
@@ -242,6 +250,15 @@ export function BizCatalog({ businessId, services, staff, onRefresh }: Props) {
                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (editId ? "GÜNCELLEMEYİ KAYDET" : "SİSTEME KAYDET")}
                     </Button>
                   </div>
+                  
+                  {activeSubTab === "staff" && !editId && staff.length >= personnelLimit && (
+                    <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
+                       <p className="text-[10px] text-amber-500 font-bold text-center leading-relaxed">
+                          ⚠️ Personel kotanız doldu ({personnelLimit}/{personnelLimit}). <br/> 
+                          Sınırsız personel için Pro pakete yükseltin.
+                       </p>
+                    </div>
+                  )}
                </div>
             </div>
 

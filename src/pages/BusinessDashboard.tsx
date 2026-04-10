@@ -14,6 +14,7 @@ import { BizLoyaltySettings } from "@/components/biz/BizLoyaltySettings";
 import { BizChurnSentinel } from "@/components/biz/BizChurnSentinel";
 import { BizInventory } from "@/components/biz/BizInventory";
 import { BizSettingsTab } from "@/components/biz/BizSettingsTab";
+import { BizPremiumHub } from "@/components/biz/BizPremiumHub";
 import { WaitlistManager } from "@/components/dashboard/WaitlistManager";
 import { SEOHead } from "@/components/SEOHead";
 import { Loader2, Bell, Search, UserCircle, Settings, Menu } from "lucide-react";
@@ -21,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 
-type BizTab = "overview" | "calendar" | "crm" | "marketing" | "performance" | "catalog" | "reviews" | "settings" | "waitlist" | "loyalty" | "inventory";
+type BizTab = "overview" | "calendar" | "crm" | "marketing" | "performance" | "catalog" | "reviews" | "settings" | "waitlist" | "loyalty" | "inventory" | "premium";
 
 export default function BusinessDashboard() {
   const { user, loading: authLoading } = useAuth();
@@ -205,7 +206,7 @@ export default function BusinessDashboard() {
                   businessId={business?.id}
                   services={services} 
                   staff={staff} 
-                  onRefresh={loadData}
+                  personnelLimit={business?.personnel_limit || 2}                  onRefresh={loadData}
                 />
               )}
 
@@ -225,6 +226,10 @@ export default function BusinessDashboard() {
 
               {activeTab === "settings" && business && (
                 <BizSettingsTab businessId={business.id} />
+              )}
+
+              {activeTab === "premium" && business && (
+                <BizPremiumHub business={business} onUpdate={loadData} />
               )}
 
            </div>

@@ -3,7 +3,7 @@ import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { t } from "@/lib/translations";
-import { Star, MapPin, Clock, CheckCircle, Phone, Calendar, MessageSquare, Gift, ArrowRight } from "lucide-react";
+import { Star, MapPin, Clock, CheckCircle, Phone, Calendar, MessageSquare, Gift, ArrowRight, Reply } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { BookingModal } from "@/components/BookingModal";
@@ -378,6 +378,17 @@ const IsletmeDetailPage = () => {
                           <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Doğrulanmış Müşteri</span>
                         </div>
                         <p className="text-sm text-muted-foreground leading-relaxed italic">"{review.comment}"</p>
+                        
+                        {review.reply && (
+                          <div className="mt-4 p-4 bg-primary/5 border-l-2 border-primary rounded-r-xl space-y-1">
+                            <p className="text-[10px] font-bold text-primary uppercase tracking-widest flex items-center gap-2">
+                              <Reply className="w-3 h-3" /> İŞLETME SAHİBİ YANITI
+                            </p>
+                            <p className="text-xs text-muted-foreground italic leading-relaxed">
+                              {review.reply}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

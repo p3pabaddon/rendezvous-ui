@@ -5,6 +5,7 @@ export async function getBusinesses(filters?: { city?: string; category?: string
     .from("businesses")
     .select("*")
     .eq("is_active", true)
+    .order("is_featured", { ascending: false })
     .order("rating", { ascending: false });
 
   if (filters?.city && filters.city !== "all") {
@@ -105,9 +106,28 @@ export async function updateAppointmentStatus(id: string, status: string) {
 
     // Automate Loyalty if completed
     if (status === 'completed' && apt.customer_id) {
-       await awardLoyaltyStamp(apt.business_id, apt.customer_id);
-       
-       await supabase.from("loyalty_logs").insert({
+        await awardLoyaltyStamp(apt.business_id, apt.customer_id);
+        
+        // Referral Award Logic
+        const { data: refRecord } = await supabase
+          .from("referrals")
+          .select("*")
+          .eq("referred_id", apt.customer_id)
+          .eq("is_rewarded", false)
+          .single();
+
+        if (refRecord) {
+          await awardReferralReward(apt.business_id, refRecord.referrer_id, apt.customer_id);
+          // Mark this referral as rewarded so they don't get rewards multiple times
+          await supabase.from("referrals").update({ 
+            is_rewarded: true,
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+            business_id: apt.business_id // Track which business paid the reward
+          }).eq("id", refRecord.id);
+        }
+        
+        await supabase.from("loyalty_logs").insert({
          customer_id: apt.customer_id,
          business_id: apt.business_id,
          appointment_id: id,
@@ -143,6 +163,30 @@ export async function joinWaitlist(data: { business_id: string; user_id: string;
   const { error } = await supabase.from("waitlist").insert(data);
   if (error) throw error;
   return true;
+}
+
+export interface Business {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  address: string;
+  city: string;
+  district: string;
+  image_url: string | null;
+  working_hours: Record<string, any>;
+  rating: number;
+  review_count: number;
+  slug: string;
+  phone: string | null;
+  amenities: string[];
+  created_at: string;
+  is_premium?: boolean;
+  premium_until?: string | null;
+  personnel_limit?: number;
+  is_featured?: boolean;
+  featured_until?: string | null;
+  branding_config?: Record<string, any>;
 }
 
 const NOTIFICATION_TEMPLATES = {
@@ -429,6 +473,52 @@ export async function claimReferral(referralCode: string) {
    });
 
    return true;
+}
+
+export async function getReferralStats() {
+   const { data: { user } } = await supabase.auth.getUser();
+   if (!user) return { count: 0, earnings: 0 };
+
+   const [countRes, earningsRes] = await Promise.all([
+     supabase.from("referrals").select("id", { count: "exact" }).eq("referrer_id", user.id).eq("status", "completed"),
+     supabase.from("promo_codes").select("discount_value").eq("customer_id", user.id).ilike("code", "REF-%")
+   ]);
+
+   const totalEarnings = (earningsRes.data || []).reduce((sum, p) => sum + (Number(p.discount_value) || 0), 0);
+   
+   return {
+     count: countRes.count || 0,
+     earnings: totalEarnings
+   };
+}
+
+export async function awardReferralReward(businessId: string, referrerId: string, refereeId: string) {
+   // 1. Get business referral config
+   const { data: biz } = await supabase.from("businesses").select("is_referral_active, referral_reward_type, referral_reward_value, referral_reward_target").eq("id", businessId).single();
+   
+   if (!biz || !biz.is_referral_active) return;
+
+   // 2. Award to Referrer
+   if (biz.referral_reward_target === 'referrer' || biz.referral_reward_target === 'both') {
+     await createPromoCode({
+       business_id: businessId,
+       customer_id: referrerId,
+       discount_type: biz.referral_reward_type === 'percent' ? 'percent' : 'fixed',
+       discount_value: biz.referral_reward_value,
+       code: `REF-B-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+     });
+   }
+
+   // 3. Award to Referee
+   if (biz.referral_reward_target === 'referee' || biz.referral_reward_target === 'both') {
+     await createPromoCode({
+       business_id: businessId,
+       customer_id: refereeId,
+       discount_type: biz.referral_reward_type === 'percent' ? 'percent' : 'fixed',
+       discount_value: biz.referral_reward_value,
+       code: `REF-W-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+     });
+   }
 }
 
 // --- Intelligence & AI Functions ---

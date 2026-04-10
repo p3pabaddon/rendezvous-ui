@@ -1,0 +1,7 @@
+-- Phase 14: Premium & Monetization Schema
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS premium_until TIMESTAMPTZ;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS personnel_limit INTEGER DEFAULT 2;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT FALSE;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS featured_until TIMESTAMPTZ;
+ALTER TABLE businesses ADD COLUMN IF NOT EXISTS branding_config JSONB DEFAULT '{}'::jsonb;

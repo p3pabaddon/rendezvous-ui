@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import { Star, MapPin, Clock, Loader2 } from "lucide-react";
+import { Star, MapPin, Clock, Loader2, Zap } from "lucide-react";
 import { t } from "@/lib/translations";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
@@ -31,6 +31,7 @@ export function FeaturedSalonsSection() {
           .from("businesses")
           .select("*")
           .eq("is_active", true)
+          .order("is_featured", { ascending: false })
           .order("rating", { ascending: false })
           .limit(3);
 
@@ -110,6 +111,12 @@ export function FeaturedSalonsSection() {
                     <span className="font-bold text-sm tracking-tight">{salon.rating || "5.0"}</span>
                     <span className="text-muted-foreground text-xs font-medium">({salon.review_count || 0}+)</span>
                   </div>
+                  {salon.is_featured && (
+                    <div className="absolute top-4 left-4 bg-amber-500 text-white px-3 py-1 rounded-full flex items-center gap-1 shadow-lg animate-pulse z-20">
+                      <Zap className="w-3 h-3 fill-white" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Öne Çıkan</span>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="p-8">

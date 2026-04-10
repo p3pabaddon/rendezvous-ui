@@ -3,13 +3,13 @@ import {
   BarChart3, Settings, LogOut, 
   ShoppingBag, Star, Megaphone, 
   Menu, X, ShieldCheck, UserCircle,
-  Target, Gift, MessageSquare, Package
+  Target, Gift, MessageSquare, Package, Crown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 
-type BizTab = "overview" | "calendar" | "crm" | "marketing" | "performance" | "catalog" | "reviews" | "settings" | "waitlist" | "loyalty" | "inventory";
+type BizTab = "overview" | "calendar" | "crm" | "marketing" | "performance" | "catalog" | "reviews" | "settings" | "waitlist" | "loyalty" | "inventory" | "premium";
 
 interface Props {
   activeTab: BizTab;
@@ -44,8 +44,9 @@ export function BizSidebar({ activeTab, setActiveTab, businessName, sidebarOpen,
     {
       label: "Büyüme Araçları",
       items: [
+         { id: "premium", label: "Avantajlar", icon: Crown },
          { id: "marketing", label: "Pazarlama Araçları", icon: Target },
-         { id: "loyalty", label: "Kampanyalar (Loyalty)", icon: Gift },
+         { id: "loyalty", label: "Sadakat & Ödüller", icon: Gift },
          { id: "reviews", label: "Müşteri Yorumları", icon: MessageSquare },
          { id: "settings", label: "İşletme Ayarı", icon: Settings },
       ]

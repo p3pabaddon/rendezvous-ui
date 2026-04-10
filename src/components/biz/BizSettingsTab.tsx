@@ -271,93 +271,83 @@ export function BizSettingsTab({ businessId }: { businessId: string }) {
             title="Çalışma Saatleri" 
             desc="İşletmenizin haftalık mesai düzenini buradan yönetin."
           >
-            <div className="space-y-4">
+            <div className="space-y-3">
               {DAYS.map((day) => {
                 const hour = business.working_hours?.[day.key] || { start: "09:00", end: "18:00", closed: false };
                 return (
                   <div 
                     key={day.key} 
                     className={cn(
-                      "group grid grid-cols-12 items-center gap-4 p-5 rounded-[1.5rem] border transition-all duration-300",
+                      "group flex items-center justify-between gap-4 p-4 rounded-3xl border transition-all duration-300",
                       hour.closed 
                         ? "bg-slate-950/20 border-slate-900/50 opacity-60" 
-                        : "bg-slate-900/40 border-slate-800 hover:border-primary/40 hover:bg-slate-900/60 shadow-xl shadow-black/10"
+                        : "bg-slate-900/40 border-slate-800/80 hover:border-primary/40 hover:bg-slate-900/60 shadow-xl shadow-black/10"
                     )}
                   >
-                    {/* Day Identification */}
-                    <div className="col-span-4 flex items-center gap-4">
+                    {/* Left: Day Info */}
+                    <div className="flex items-center gap-4 flex-1 min-w-[140px]">
                       <div className={cn(
-                        "w-11 h-11 rounded-2xl flex items-center justify-center border transition-all duration-300 shadow-inner",
+                        "w-10 h-10 rounded-2xl flex items-center justify-center border transition-all duration-300",
                         hour.closed 
                           ? "bg-slate-950 border-slate-900 text-slate-700" 
-                          : "bg-primary/20 border-primary/30 text-primary group-hover:bg-primary group-hover:text-white group-hover:shadow-[0_0_20px_rgba(59,130,246,0.5)]"
+                          : "bg-primary/20 border-primary/30 text-primary"
                       )}>
-                        <span className="text-xs font-black uppercase tracking-tighter">{day.label.slice(0, 3)}</span>
+                        <span className="text-[10px] font-black uppercase tracking-tighter">{day.label.slice(0, 3)}</span>
                       </div>
-                      <div className="min-w-0">
+                      <div>
                         <p className={cn(
-                          "text-base font-black tracking-tight truncate",
+                          "text-sm font-black tracking-tight",
                           hour.closed ? "text-slate-600" : "text-white"
                         )}>{day.label}</p>
-                        <div className="flex items-center gap-1.5">
-                           <div className={cn("w-1.5 h-1.5 rounded-full", hour.closed ? "bg-rose-500" : "bg-emerald-500 animate-pulse")} />
-                           <p className={cn(
-                             "text-[9px] uppercase font-black tracking-widest",
-                             hour.closed ? 'text-rose-500/80' : 'text-emerald-500'
-                           )}>
-                             {hour.closed ? 'KAPALI' : 'AÇIK'}
-                           </p>
-                        </div>
+                        <p className={cn(
+                          "text-[8px] uppercase font-black tracking-widest",
+                          hour.closed ? 'text-rose-500/80' : 'text-emerald-500'
+                        )}>
+                          {hour.closed ? 'KAPALI' : 'AÇIK'}
+                        </p>
                       </div>
                     </div>
                     
-                    {/* Time Inputs */}
-                    <div className="col-span-6 flex items-center justify-center">
+                    {/* Middle: Time Selectors */}
+                    <div className="flex items-center justify-center gap-2 flex-[2]">
                       {!hour.closed ? (
-                        <div className="flex items-center gap-3 animate-in slide-in-from-right-4 duration-500">
-                           <div className="flex flex-col gap-1">
-                              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">BAŞLANGIÇ</span>
+                        <div className="flex items-center gap-2">
+                           <div className="flex flex-col">
+                              <span className="text-[7px] font-bold text-slate-500 uppercase tracking-widest ml-1 mb-0.5">AÇILIŞ</span>
                               <Input 
                                 type="time" 
                                 value={hour.start} 
                                 onChange={(e) => updateWorkingHour(day.key, "start", e.target.value)}
-                                className="bg-slate-950/80 border-slate-800 h-11 text-sm w-28 text-center rounded-[0.9rem] focus:ring-2 focus:ring-primary/20 transition-all"
+                                className="bg-slate-950/50 border-slate-800 h-9 text-xs w-24 text-center rounded-xl focus:ring-1 focus:ring-primary/20"
                               />
                            </div>
                            
-                           <div className="mt-5 h-[2px] w-4 bg-slate-800 rounded-full"></div>
+                           <div className="mt-3 text-slate-800">–</div>
 
-                           <div className="flex flex-col gap-1">
-                              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">BİTİŞ</span>
+                           <div className="flex flex-col">
+                              <span className="text-[7px] font-bold text-slate-500 uppercase tracking-widest ml-1 mb-0.5">KAPANIŞ</span>
                               <Input 
                                 type="time" 
                                 value={hour.end} 
                                 onChange={(e) => updateWorkingHour(day.key, "end", e.target.value)}
-                                className="bg-slate-950/80 border-slate-800 h-11 text-sm w-28 text-center rounded-[0.9rem] focus:ring-2 focus:ring-primary/20 transition-all"
+                                className="bg-slate-950/50 border-slate-800 h-9 text-xs w-24 text-center rounded-xl focus:ring-1 focus:ring-primary/20"
                               />
                            </div>
                         </div>
                       ) : (
-                        <div className="w-full flex justify-center">
-                           <div className="text-[10px] text-slate-700 font-mono tracking-[0.2em] uppercase italic bg-slate-950/50 px-8 py-3 rounded-2xl border-2 border-dashed border-slate-900">
-                              – MAĞAZA KAPALI –
-                           </div>
+                        <div className="text-[8px] text-slate-700 font-mono tracking-[0.2em] uppercase italic bg-slate-950/40 px-6 py-2 rounded-xl border border-dashed border-slate-800">
+                           MAĞAZA KAPALI
                         </div>
                       ) }
                     </div>
 
-                    {/* Toggle Switch */}
-                    <div className="col-span-2 flex justify-end">
-                       <div className={cn(
-                          "p-2 rounded-2xl transition-all",
-                          !hour.closed ? "bg-emerald-500/10" : "bg-slate-900"
-                       )}>
+                    {/* Right: Actions */}
+                    <div className="flex items-center justify-end flex-1">
                         <Switch 
                           checked={!hour.closed} 
                           onCheckedChange={(v) => updateWorkingHour(day.key, "closed", !v)}
-                          className="data-[state=checked]:bg-emerald-500 shadow-lg"
+                          className="data-[state=checked]:bg-emerald-500"
                         />
-                       </div>
                     </div>
                   </div>
                 );
