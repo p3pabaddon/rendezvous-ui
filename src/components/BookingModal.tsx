@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
-import { CheckCircle, Clock, User, Mail, ShieldCheck, Loader2, CreditCard, RefreshCw } from "lucide-react";
+import { Star, Zap, ThumbsUp, TrendingUp, Sparkles, ShieldCheck, Clock, User, Mail, Loader2, CreditCard, RefreshCw, CheckCircle } from "lucide-react";
 import { createAppointment, getOccupiedSlots, joinWaitlist } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { generateTimeSlots, getWorkingHoursForDay, isSlotOccupied } from "@/lib/booking-utils";
+import { calculateSmartPrice, generateTimeSlots, getWorkingHoursForDay, isSlotOccupied } from "@/lib/booking-utils";
 
 interface Service {
   id: string;
@@ -51,6 +51,7 @@ export function BookingModal({ open, onOpenChange, businessId, businessName, ser
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
+  const [customerNotes, setCustomerNotes] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [generatedCode, setGeneratedCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
@@ -85,10 +86,12 @@ export function BookingModal({ open, onOpenChange, businessId, businessName, ser
     setLoadingSlots(true);
     try {
       const dateStr = format(selectedDate, "yyyy-MM-dd");
+      console.log("Fetching slots for:", businessId, dateStr);
       const data = await getOccupiedSlots(businessId, dateStr, selectedStaff || undefined);
       setOccupiedSlots(data || []);
     } catch (err) {
       console.error("Müsaitlik hatası:", err);
+      setOccupiedSlots([]);
     } finally {
       setLoadingSlots(false);
     }
@@ -146,6 +149,14 @@ export function BookingModal({ open, onOpenChange, businessId, businessName, ser
     if (verificationCode === generatedCode) {
       setCodeVerified(true);
       toast({ title: "Doğrulandı!", description: "E-posta adresiniz başarıyla doğrulandı." });
+      // Otomatik ilerle
+      setTimeout(() => {
+        if (totalPrice > 0) {
+          setStep(6);
+        } else {
+          handleSubmit();
+        }
+      }, 1500);
     } else {
       toast({ title: "Hatalı kod", description: "Girdiğiniz kod hatalı. Lütfen tekrar deneyin.", variant: "destructive" });
     }
@@ -164,8 +175,10 @@ export function BookingModal({ open, onOpenChange, businessId, businessName, ser
         appointment_date: format(selectedDate, "yyyy-MM-dd"),
         appointment_time: selectedTime,
         staff_id: selectedStaff || undefined,
+        status: "pending",
         total_price: totalPrice,
-        notes: chosenServices.map(s => s.name).join(", "),
+        service_name: chosenServices.map(s => s.name).join(", "),
+        notes: customerNotes || null,
       });
       setSuccess(true);
     } catch (error: any) {
@@ -185,6 +198,7 @@ export function BookingModal({ open, onOpenChange, businessId, businessName, ser
     setCustomerName("");
     setCustomerPhone("");
     setCustomerEmail("");
+    setCustomerNotes("");
     setVerificationCode("");
     setGeneratedCode("");
     setCodeSent(false);
@@ -261,7 +275,16 @@ export function BookingModal({ open, onOpenChange, businessId, businessName, ser
                       <Clock className="w-3.5 h-3.5" /> {service.duration} dk
                     </div>
                   </div>
-                  <span className="font-semibold text-foreground">₺{service.price}</span>
+                  <div className="text-right">
+                    <div className="text-lg font-bold text-accent">
+                      {calculateSmartPrice(service.price, selectedDate || new Date()).price} TL
+                    </div>
+                    {calculateSmartPrice(service.price, selectedDate || new Date()).multiplier !== 1 && (
+                      <div className="text-xs text-accent/80 font-medium">
+                        {calculateSmartPrice(service.price, selectedDate || new Date()).label}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </button>
             ))}
@@ -326,10 +349,15 @@ export function BookingModal({ open, onOpenChange, businessId, businessName, ser
                 setSelectedTime(null);
               }}
               disabled={(date) => {
-                if (date < new Date(new Date().setHours(0, 0, 0, 0))) return true;
-                const dayName = format(date, "EEEE", { locale: tr });
-                const hours = workingHours[dayName];
-                return !hours || String(hours).toLowerCase().includes("kapal");
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                if (date < today) return true;
+                
+                // Final safety check: if workingHours is empty or malformed, 
+                // we treat the business as 'Always Open' for the UI to prevent total lock-out
+                if (!workingHours || Object.keys(workingHours).length === 0) return false;
+                
+                return !getWorkingHoursForDay(workingHours, date);
               }}
               className="rounded-xl border border-border mx-auto"
             />
@@ -342,42 +370,56 @@ export function BookingModal({ open, onOpenChange, businessId, businessName, ser
                 {loadingSlots ? (
                   <div className="flex justify-center p-8"><RefreshCw className="w-6 h-6 animate-spin text-accent" /></div>
                 ) : (() => {
-                  const dayHours = getWorkingHoursForDay(workingHours, selectedDate);
-                  if (!dayHours) return <p className="text-center text-sm text-destructive">Bugün kapalı.</p>;
-                  const slots = generateTimeSlots(dayHours.start, dayHours.end);
-                  const availableSlots = slots.filter(time => !isSlotOccupied(time, occupiedSlots, selectedStaff, staff.length));
-                  
-                  if (availableSlots.length > 0) {
+                  try {
+                    const dayHours = getWorkingHoursForDay(workingHours, selectedDate);
+                    if (!dayHours) return <p className="text-center text-sm text-destructive">Bugün kapalı.</p>;
+                    
+                    const slots = generateTimeSlots(dayHours.start, dayHours.end) || [];
+                    const sList = staff || [];
+                    const isToday = selectedDate && format(selectedDate, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd"); 
+                    const nowTime = format(new Date(), "HH:mm");
+
+                    const availableSlots = slots.filter(time => {
+                      // Eğer bugünse ve slot saati şu anki saatten küçükse gösterme
+                      if (isToday && time <= nowTime) return false;
+                      return !isSlotOccupied(time, occupiedSlots || [], selectedStaff, sList.length);
+                    });
+                    
+                    if (availableSlots.length > 0) {
+                      return (
+                        <div className="grid grid-cols-4 gap-2">
+                          {availableSlots.map((time) => (
+                            <button
+                              key={time}
+                              onClick={() => setSelectedTime(time)}
+                              className={`py-2 text-sm rounded-lg border transition-colors ${
+                                selectedTime === time
+                                  ? "border-accent bg-accent text-accent-foreground"
+                                  : "border-border hover:border-accent/30 text-foreground"
+                              }`}
+                            >
+                              {time}
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    }
                     return (
-                      <div className="grid grid-cols-4 gap-2">
-                        {availableSlots.map((time) => (
-                          <button
-                            key={time}
-                            onClick={() => setSelectedTime(time)}
-                            className={`py-2 text-sm rounded-lg border transition-colors ${
-                              selectedTime === time
-                                ? "border-accent bg-accent text-accent-foreground"
-                                : "border-border hover:border-accent/30 text-foreground"
-                            }`}
-                          >
-                            {time}
-                          </button>
-                        ))}
+                      <div className="text-center p-6 border border-dashed rounded-xl space-y-3">
+                        <p className="text-sm text-muted-foreground">Bu tarihte müsait saat bulunamadı.</p>
+                        {inWaitlist ? (
+                          <Badge variant="outline" className="text-green-600">Sıradan Haber Bekleniyor ✅</Badge>
+                        ) : (
+                          <Button variant="outline" size="sm" onClick={handleJoinWaitlist} disabled={waitlistLoading}>
+                            {waitlistLoading ? "Ekleniyor..." : "Beni Waitlist'e Ekle"}
+                          </Button>
+                        )}
                       </div>
                     );
+                  } catch (err) {
+                    console.error("Render error in slots:", err);
+                    return <p className="text-center text-sm text-muted-foreground">Müsaitlik bilgisi hesaplanırken bir hata oluştu.</p>;
                   }
-                  return (
-                    <div className="text-center p-6 border border-dashed rounded-xl space-y-3">
-                      <p className="text-sm text-muted-foreground">Bu tarihte müsait saat bulunamadı.</p>
-                      {inWaitlist ? (
-                        <Badge variant="outline" className="text-green-600">Sıradan Haber Bekleniyor ✅</Badge>
-                      ) : (
-                        <Button variant="outline" size="sm" onClick={handleJoinWaitlist} disabled={waitlistLoading}>
-                          {waitlistLoading ? "Ekleniyor..." : "Beni Waitlist'e Ekle"}
-                        </Button>
-                      )}
-                    </div>
-                  );
                 })()}
               </div>
             )}
@@ -426,19 +468,33 @@ export function BookingModal({ open, onOpenChange, businessId, businessName, ser
                 <Label htmlFor="booking-email">E-posta *</Label>
                 <Input id="booking-email" type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} placeholder="ornek@email.com" className="mt-1" />
               </div>
+              <div>
+                <Label htmlFor="booking-notes">Randevu Notu (Opsiyonel)</Label>
+                <textarea 
+                  id="booking-notes" 
+                  value={customerNotes} 
+                  onChange={(e) => setCustomerNotes(e.target.value)} 
+                  placeholder="İşletmeye iletmek istediğiniz özel bir not var mı?"
+                  className="w-full mt-1 min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </div>
             </div>
 
             <div className="flex gap-3">
               <Button variant="outline" className="flex-1" onClick={() => setStep(3)}>Geri</Button>
               <Button
                 className="flex-1"
-                disabled={!customerName || !customerPhone || !customerEmail}
+                disabled={
+                  !customerName.trim().includes(" ") || 
+                  !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail) || 
+                  !/^05\d{9}$/.test(customerPhone.replace(/[\s-]/g, ""))
+                }
                 onClick={() => {
                   setStep(5);
                   if (!codeSent) handleSendCode();
                 }}
               >
-                Devam Et
+                Doğrula ve Devam Et
               </Button>
             </div>
           </div>
@@ -509,22 +565,23 @@ export function BookingModal({ open, onOpenChange, businessId, businessName, ser
                   )}
                 </div>
 
-                {codeVerified && (
-                  <div className="pt-4 border-t border-border mt-4">
-                    <Button
-                      className="w-full"
-                      onClick={() => {
-                        if (totalPrice > 0) {
-                          setStep(6);
-                        } else {
-                          handleSubmit();
-                        }
-                      }}
-                    >
-                      {totalPrice > 0 ? "Ödeme Adımına Geç" : "Randevuyu Tamamla"}
-                    </Button>
-                  </div>
-                )}
+              </div>
+            )}
+            
+            {codeVerified && (
+              <div className="pt-4 border-t border-border mt-4">
+                <Button
+                  className="w-full"
+                  onClick={() => {
+                    if (totalPrice > 0) {
+                      setStep(6);
+                    } else {
+                      handleSubmit();
+                    }
+                  }}
+                >
+                  {totalPrice > 0 ? "Ödeme Adımına Geç" : "Randevuyu Tamamla"}
+                </Button>
               </div>
             )}
           </div>

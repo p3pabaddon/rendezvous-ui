@@ -4,6 +4,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { Header } from "./components/layout/Header";
+import { Footer } from "./components/layout/Footer";
+import { ScrollToTop } from "./components/layout/ScrollToTop";
 import Index from "./pages/Index";
 import IsletmelerPage from "./pages/IsletmelerPage";
 import IsletmeDetailPage from "./pages/IsletmeDetailPage";
@@ -13,12 +16,16 @@ import HakkimizdaPage from "./pages/HakkimizdaPage";
 import IletisimPage from "./pages/IletisimPage";
 import SSSPage from "./pages/SSSPage";
 import IsletmeBasvuruPage from "./pages/IsletmeBasvuruPage";
-import DashboardPage from "./pages/DashboardPage";
+import BusinessDashboard from "./pages/BusinessDashboard";
 import StaffDashboardPage from "./pages/StaffDashboardPage";
 import ProfilPage from "./pages/ProfilPage";
 import AdminPage from "./pages/AdminPage";
 import ForBusinessesPage from "./pages/ForBusinessesPage";
+import HqDashboard from "./pages/HqDashboard";
+import HqLoginPage from "./pages/HqLoginPage";
 import NotFound from "./pages/NotFound";
+import { TrafficTracker } from "./components/TrafficTracker";
+import { QuickBookWidget } from "./components/QuickBookWidget";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +36,8 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <TrafficTracker />
+          <QuickBookWidget />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/isletmeler" element={<IsletmelerPage />} />
@@ -39,11 +48,13 @@ const App = () => (
             <Route path="/iletisim" element={<IletisimPage />} />
             <Route path="/sss" element={<SSSPage />} />
             <Route path="/isletme-basvuru" element={<IsletmeBasvuruPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/dashboard" element={<BusinessDashboard />} />
             <Route path="/personel-paneli" element={<StaffDashboardPage />} />
             <Route path="/profil" element={<ProfilPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/isletmeler-icin" element={<ForBusinessesPage />} />
+            <Route path="/hq" element={<HqDashboard />} />
+            <Route path="/hq/login" element={<HqLoginPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

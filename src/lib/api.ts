@@ -90,7 +90,7 @@ export async function updateAppointmentStatus(id: string, status: string) {
 
   if (error) throw error;
 
-  // Trigger notification
+  // Trigger notification & Loyalty Automation
   if (apt) {
     sendNotification({
       type: "status_change",
@@ -102,6 +102,18 @@ export async function updateAppointmentStatus(id: string, status: string) {
         time: apt.appointment_time
       }
     });
+
+    // Automate Loyalty if completed
+    if (status === 'completed' && apt.customer_id) {
+       await awardLoyaltyStamp(apt.business_id, apt.customer_id);
+       
+       await supabase.from("loyalty_logs").insert({
+         customer_id: apt.customer_id,
+         business_id: apt.business_id,
+         appointment_id: id,
+         action_type: 'appointment_complete'
+       });
+    }
 
     // Waitlist logic: if cancelled, notify people waiting for this day
     if (status === "cancelled") {
@@ -215,6 +227,7 @@ export async function createAppointment(data: any) {
   };
 
   if (data.staff_id) insertData.staff_id = data.staff_id;
+  if (data.service_name) insertData.service_name = data.service_name;
   if (user?.id) insertData.customer_id = user.id;
 
   const { error } = await supabase.from("appointments").insert(insertData);
@@ -254,4 +267,279 @@ export async function getAdminSystemStats() {
     totalAppointments: aptsRes.count || 0,
     totalRevenue,
   };
+}
+
+// --- Loyalty & Growth Functions ---
+
+export async function getLoyaltyProgram(businessId: string) {
+   const { data, error } = await supabase
+     .from("loyalty_programs")
+     .select("*")
+     .eq("business_id", businessId)
+     .eq("is_active", true)
+     .single();
+   
+   if (error && error.code !== "PGRST116") throw error;
+   return data;
+}
+
+export async function joinLoyaltyProgram(businessId: string) {
+   const { data: { user } } = await supabase.auth.getUser();
+   if (!user) throw new Error("Giriş yapmalısınız");
+
+   const { data, error } = await supabase
+     .from("customer_loyalty")
+     .insert({
+       business_id: businessId,
+       customer_id: user.id,
+       current_stamps: 0,
+       total_completed_appointments: 0
+     })
+     .select()
+     .single();
+   
+   if (error) throw error;
+   return data;
+}
+
+export async function getCustomerLoyalty(businessId: string) {
+   const { data: { user } } = await supabase.auth.getUser();
+   if (!user) return null;
+
+   const { data, error } = await supabase
+     .from("customer_loyalty")
+     .select("*")
+     .eq("business_id", businessId)
+     .eq("customer_id", user.id)
+     .single();
+   
+   if (error && error.code !== "PGRST116") throw error;
+   return data;
+}
+
+async function awardLoyaltyStamp(businessId: string, customerId: string) {
+   // Check if business has an active loyalty program
+   const program = await getLoyaltyProgram(businessId);
+   if (!program) return;
+
+   // Update or Insert loyalty progress
+   const { data: current } = await supabase
+     .from("customer_loyalty")
+     .select("*")
+     .eq("business_id", businessId)
+     .eq("customer_id", customerId)
+     .single();
+
+   if (current) {
+     const newStamps = current.current_stamps + 1;
+     const totalCompleted = current.total_completed_appointments + 1;
+     
+     // Check for reward
+     if (newStamps >= program.target_stamps) {
+       // Reset stamps and generate a promo code
+       await supabase.from("customer_loyalty").update({
+         current_stamps: 0,
+         total_completed_appointments: totalCompleted,
+         updated_at: new Date().toISOString()
+       }).eq("id", current.id);
+       
+       // Generate Reward Code
+       await createPromoCode({
+         business_id: businessId,
+         customer_id: customerId,
+         discount_type: program.reward_type === 'free_service' ? 'percent' : program.reward_type,
+         discount_value: program.reward_type === 'free_service' ? 100 : program.reward_value,
+         code: `LOYALTY-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+       });
+     } else {
+       await supabase.from("customer_loyalty").update({
+         current_stamps: newStamps,
+         total_completed_appointments: totalCompleted,
+         updated_at: new Date().toISOString()
+       }).eq("id", current.id);
+     }
+   } else {
+     await supabase.from("customer_loyalty").insert({
+       business_id: businessId,
+       customer_id: customerId,
+       current_stamps: 1,
+       total_completed_appointments: 1
+     });
+   }
+}
+
+export async function createPromoCode(params: any) {
+   const { error } = await supabase.from("promo_codes").insert({
+     ...params,
+     expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
+   });
+   if (error) throw error;
+}
+
+export async function getMyPromoCodes() {
+   const { data: { user } } = await supabase.auth.getUser();
+   if (!user) return [];
+
+   const { data, error } = await supabase
+     .from("promo_codes")
+     .select("*, business:businesses(name)")
+     .eq("customer_id", user.id)
+     .eq("is_used", false)
+     .gt("expires_at", new Date().toISOString());
+   
+   if (error) throw error;
+   return data;
+}
+
+export async function claimReferral(referralCode: string) {
+   const { data: { user } } = await supabase.auth.getUser();
+   if (!user) throw new Error("Giriş yapmalısınız");
+
+   // 1. Find referral
+   const { data: referral, error: refError } = await supabase
+     .from("referrals")
+     .select("*")
+     .eq("referral_code", referralCode)
+     .eq("status", "pending")
+     .single();
+   
+   if (refError || !referral) throw new Error("Geçersiz veya kullanılmış kod");
+   if (referral.referrer_id === user.id) throw new Error("Kendi kodunuzu kullanamazsınız");
+
+   // 2. Mark as completed
+   await supabase.from("referrals").update({
+     referred_id: user.id,
+     status: "completed",
+     completed_at: new Date().toISOString()
+   }).eq("id", referral.id);
+
+   // 3. Give rewards (Global 50 TL discount)
+   await createPromoCode({
+     customer_id: user.id,
+     discount_type: "fixed",
+     discount_value: 50,
+     code: `REF-WELCOME-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+   });
+
+   await createPromoCode({
+     customer_id: referral.referrer_id,
+     discount_type: "fixed",
+     discount_value: 50,
+     code: `REF-BONUS-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+   });
+
+   return true;
+}
+
+// --- Intelligence & AI Functions ---
+
+export async function getPricingRules(businessId: string) {
+   const { data, error } = await supabase
+     .from("pricing_rules")
+     .select("*")
+     .eq("business_id", businessId)
+     .eq("is_active", true);
+   
+   if (error) throw error;
+   return data || [];
+}
+
+export async function getChurnSentinelData(businessId: string) {
+   // 1. Get all completed appointments for this business
+   const { data: appointments, error } = await supabase
+     .from("appointments")
+     .select("customer_id, customer_name, customer_email, customer_phone, appointment_date")
+     .eq("business_id", businessId)
+     .eq("status", "completed")
+     .order("appointment_date", { ascending: false });
+
+   if (error) throw error;
+   if (!appointments || appointments.length === 0) return [];
+
+   // 2. Group by customer and find latest visit
+   const customerMap = new Map();
+   const fortyFiveDaysAgo = new Date();
+   fortyFiveDaysAgo.setDate(fortyFiveDaysAgo.getDate() - 45);
+
+   appointments.forEach(a => {
+     if (!a.customer_email && !a.customer_phone) return;
+     const key = a.customer_id || a.customer_email || a.customer_phone;
+     
+     if (!customerMap.has(key)) {
+       customerMap.set(key, {
+         name: a.customer_name,
+         email: a.customer_email,
+         phone: a.customer_phone,
+         last_visit: new Date(a.appointment_date),
+         visit_count: 1
+       });
+     } else {
+       customerMap.get(key).visit_count += 1;
+     }
+   });
+
+   // 3. Filter for churn risk: last visit > 45 days ago AND had at least 1 visit
+   const churned = Array.from(customerMap.values())
+     .filter(c => c.last_visit < fortyFiveDaysAgo && c.visit_count >= 1)
+     .sort((a, b) => a.last_visit.getTime() - b.last_visit.getTime());
+
+   return churned;
+}
+
+// --- Inventory Management Functions ---
+
+export async function getInventory(businessId: string) {
+  const { data, error } = await supabase
+    .from("inventory")
+    .select("*")
+    .eq("business_id", businessId)
+    .order("name", { ascending: true });
+  
+  if (error) throw error;
+  return data || [];
+}
+
+export async function addInventoryItem(itemData: any) {
+  const { data, error } = await supabase
+    .from("inventory")
+    .insert(itemData)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+}
+
+export async function updateInventoryItem(id: string, updates: any) {
+  const { data, error } = await supabase
+    .from("inventory")
+    .update({ ...updates, last_updated: new Date().toISOString() })
+    .eq("id", id)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteInventoryItem(id: string) {
+  const { error } = await supabase
+    .from("inventory")
+    .delete()
+    .eq("id", id);
+  
+  if (error) throw error;
+  return true;
+}
+
+export async function updateMyBusiness(businessId: string, updates: any) {
+  const { data, error } = await supabase
+    .from("businesses")
+    .update(updates)
+    .eq("id", businessId)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
 }

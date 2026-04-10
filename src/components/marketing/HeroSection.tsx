@@ -90,8 +90,16 @@ export function HeroSection() {
   ];
 
   return (
-    <section className="relative overflow-hidden bg-background">
-      <div className="absolute inset-0 bg-gradient-to-br from-secondary/50 via-background to-accent/5" />
+    <section className="relative overflow-hidden bg-background min-h-[600px] flex items-center">
+      {/* Luxury Background Image */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-40 mix-blend-overlay dark:opacity-20"
+        style={{ backgroundImage: 'url("/hero_luxury_bg.png")' }}
+      />
+      
+      {/* Gradient Overlay for Depth */}
+      <div className="absolute inset-0 bg-gradient-to-br from-background via-background/80 to-accent/5" />
+      
       <FloatingShapes />
 
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-24 lg:py-32">

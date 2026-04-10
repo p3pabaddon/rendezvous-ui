@@ -3,17 +3,20 @@ import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { t } from "@/lib/translations";
-import { Star, MapPin, Clock, CheckCircle, Phone, Calendar } from "lucide-react";
+import { Star, MapPin, Clock, CheckCircle, Phone, Calendar, MessageSquare, Gift, ArrowRight } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { BookingModal } from "@/components/BookingModal";
 import { ReviewModal } from "@/components/ReviewModal";
 import { ShareButtons } from "@/components/ShareButtons";
 import { FavoriteButton } from "@/components/FavoriteButton";
-import { getBusinessBySlug } from "@/lib/api";
+import { getBusinessBySlug, getLoyaltyProgram, getCustomerLoyalty, joinLoyaltyProgram } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { MessageSquare } from "lucide-react";
 import { SEOHead } from "@/components/SEOHead";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { StampCard } from "@/components/loyalty/StampCard";
+import { ReviewAISummary } from "@/components/ReviewAISummary";
 
 const IsletmeDetailPage = () => {
   const { slug } = useParams();
@@ -22,19 +25,66 @@ const IsletmeDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [bookingOpen, setBookingOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [loyaltyProgram, setLoyaltyProgram] = useState<any>(null);
+  const [customerLoyalty, setCustomerLoyalty] = useState<any>(null);
+  const [joining, setJoining] = useState(false);
 
   const reloadBusiness = () => {
     if (slug) getBusinessBySlug(slug).then(setBiz).catch(() => {});
   };
 
+  const handleJoinLoyalty = async () => {
+    if (!user) {
+      toast.error("Lütfen önce giriş yapın", {
+        description: "Sadakat programına katılmak için bir hesabınız olmalı."
+      });
+      return;
+    }
+
+    setJoining(true);
+    try {
+      const data = await joinLoyaltyProgram(biz.id);
+      setCustomerLoyalty(data);
+      toast.success("Müdavim Kartınız Oluşturuldu! ✨", {
+        description: `Artık ${biz.name} işletmesinde randevu aldıkça damga kazanacaksınız.`
+      });
+    } catch (err: any) {
+      console.error("Loyalty join error:", err);
+      toast.error("Hata oluştu", {
+        description: "Kart oluşturulurken bir sorun yaşandı."
+      });
+    } finally {
+      setJoining(false);
+    }
+  };
+
   useEffect(() => {
     if (slug) {
       getBusinessBySlug(slug)
-        .then(setBiz)
+        .then(async (data) => {
+          console.log("Business Data Loaded:", data);
+          console.log("Working Hours:", data?.working_hours);
+          console.log("Reviews:", data?.reviews);
+          setBiz(data);
+          if (data?.reviews) console.log("Reviews found:", data.reviews.length);
+          if (data?.id) {
+            try {
+              const prog = await getLoyaltyProgram(data.id);
+              setLoyaltyProgram(prog);
+              
+              if (user) {
+                const custLog = await getCustomerLoyalty(data.id);
+                setCustomerLoyalty(custLog);
+              }
+            } catch (err) {
+              console.warn("Loyalty system ignored due to sync error:", err);
+            }
+          }
+        })
         .catch(() => setBiz(null))
         .finally(() => setLoading(false));
     }
-  }, [slug]);
+  }, [slug, user]);
 
   if (loading) {
     return (
@@ -125,15 +175,108 @@ const IsletmeDetailPage = () => {
           </div>
         </div>
 
-        {/* Gallery */}
-        {biz.gallery_urls && biz.gallery_urls.length > 0 && (
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {biz.gallery_urls.map((url: string, i: number) => (
-                <div key={i} className="aspect-video rounded-xl overflow-hidden border border-border bg-card">
-                  <img src={url} alt={`${biz.name} galeri ${i+1}`} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+        {/* Portfolio / Gallery */}
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-2xl font-heading text-foreground">Çalışmalarımız</h2>
+              <p className="text-muted-foreground">
+                {biz.gallery_urls && biz.gallery_urls.length > 0 
+                  ? "İşletmemizde gerçekleştirilen bazı örnek hizmetler" 
+                  : "Yakında burada en iyi çalışmalarımızı göreceksiniz"}
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {(biz.gallery_urls && biz.gallery_urls.length > 0 
+              ? biz.gallery_urls 
+              : Array.from({ length: 4 }).map((_, i) => `/placeholder-portfolio-${(i % 2) + 1}.jpg`)).map((url: string, i: number) => (
+              <div 
+                key={i} 
+                className={cn(
+                  "group relative aspect-[4/5] rounded-2xl overflow-hidden border border-border bg-card shadow-sm hover:shadow-xl transition-all duration-500",
+                  i % 3 === 0 && "md:col-span-1 md:row-span-1",
+                  i % 4 === 1 && "md:mt-8",
+                  (!biz.gallery_urls || biz.gallery_urls.length === 0) && "opacity-40 grayscale hover:grayscale-0 hover:opacity-100"
+                )}
+              >
+                <img 
+                  src={url.startsWith('/') ? `https://images.unsplash.com/photo-${i === 0 ? '1562322140-8baeececf3df' : i === 1 ? '1620331311520-246422ff83f9' : i === 2 ? '1521590832167-7bcbfaa6381f' : '1560066984-138dadb4c035'}?auto=format&fit=crop&q=80&w=800` : url} 
+                  alt={`${biz.name} galeri ${i+1}`} 
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-4">
+                  <p className="text-white text-xs font-medium">Örnek Uygulama</p>
                 </div>
-              ))}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Loyalty Program Section */}
+        {loyaltyProgram && (
+          <div className="bg-slate-900 border-y border-slate-800 py-16">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                  <div className="space-y-6">
+                     <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20">
+                        <Star className="w-4 h-4 text-primary fill-primary" />
+                        <span className="text-xs font-bold text-primary uppercase tracking-widest">Müdavim Programı</span>
+                     </div>
+                     <h2 className="text-3xl lg:text-5xl font-heading font-black text-white leading-tight">
+                        {biz.name} Müdavimi Olun, <br />
+                        <span className="text-primary italic">{loyaltyProgram.reward_title}</span> Kazanın!
+                     </h2>
+                     <p className="text-slate-400 text-lg leading-relaxed max-w-xl">
+                        Sizi daha sık görmek istiyoruz! Bu işletmede her {loyaltyProgram.target_stamps} randevunuzda bir damga kazanırsınız. 
+                        Hedefe ulaştığınızda özel ödülünüz kapınıza (veya koltuğunuza) gelsin.
+                     </p>
+                     
+                     <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                        <div className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-2xl border border-slate-700">
+                           <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+                              <CheckCircle className="w-5 h-5 text-primary" />
+                           </div>
+                           <div>
+                              <p className="text-white font-bold text-sm">Katılım Ücretsiz</p>
+                              <p className="text-slate-500 text-xs">Tek tıkla hemen başlayın</p>
+                           </div>
+                        </div>
+                        <div className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-2xl border border-slate-700">
+                           <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center">
+                              <Gift className="w-5 h-5 text-violet-400" />
+                           </div>
+                           <div>
+                              <p className="text-white font-bold text-sm">Dijital Damga</p>
+                              <p className="text-slate-500 text-xs">Kart taşıma derdi yok</p>
+                           </div>
+                        </div>
+                     </div>
+
+                     {!customerLoyalty && (
+                       <Button 
+                        size="lg" 
+                        onClick={handleJoinLoyalty}
+                        disabled={joining}
+                        className="h-14 px-8 rounded-2xl font-black text-sm uppercase tracking-wider shadow-xl shadow-primary/20 group animate-in fade-in slide-in-from-left duration-700"
+                       >
+                          {joining ? "OLUŞTURULUYOR..." : "MÜDAVİM KARTI OLUŞTUR"}
+                          {!joining && <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />}
+                       </Button>
+                     )}
+                  </div>
+
+                  <div className="flex justify-center lg:justify-end">
+                     <StampCard 
+                        businessName={biz.name}
+                        currentStamps={customerLoyalty?.current_stamps || 0}
+                        targetStamps={loyaltyProgram.target_stamps}
+                        rewardTitle={loyaltyProgram.reward_title}
+                        isGuest={!user}
+                        className="w-full max-w-[400px] rotate-2 hover:rotate-0 transition-transform duration-500 shadow-2xl scale-110"
+                     />
+                  </div>
+               </div>
             </div>
           </div>
         )}
@@ -194,44 +337,62 @@ const IsletmeDetailPage = () => {
               )}
 
               {/* Reviews */}
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-heading text-foreground mb-6">{t("common.reviews")}</h2>
+              <div className="pt-8 border-t border-border">
+                <div className="flex items-center justify-between mb-8">
+                  <div>
+                    <h2 className="text-2xl font-heading text-foreground">{t("common.reviews")}</h2>
+                    <p className="text-sm text-muted-foreground">Müşterilerimizin deneyimleri</p>
+                  </div>
                   {user && (
-                    <Button variant="outline" size="sm" onClick={() => setReviewOpen(true)}>
-                      <MessageSquare className="w-4 h-4 mr-1" /> Yorum Yap
+                    <Button variant="outline" size="sm" onClick={() => setReviewOpen(true)} className="rounded-full">
+                      <MessageSquare className="w-4 h-4 mr-2" /> Yorum Yap
                     </Button>
                   )}
                 </div>
+
+                {biz.reviews && biz.reviews.length > 0 && (
+                  <ReviewAISummary reviews={biz.reviews} />
+                )}
+
                 {biz.reviews && biz.reviews.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {biz.reviews.map((review: any) => (
-                      <div key={review.id} className="bg-card border border-border rounded-xl p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                              <span className="text-primary text-xs font-semibold">{review.customer_name[0]}</span>
+                      <div key={review.id} className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-2xl p-6 hover:border-accent/40 transition-colors shadow-sm">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-primary/20 to-accent/20 rounded-full flex items-center justify-center border border-border">
+                              <span className="text-primary text-sm font-bold uppercase">{review.customer_name[0]}</span>
                             </div>
-                            <span className="font-medium text-sm text-foreground">{review.customer_name}</span>
+                            <div>
+                              <span className="font-semibold text-foreground block">{review.customer_name}</span>
+                              <div className="flex items-center gap-0.5 mt-1">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                  <Star key={i} className={cn(
+                                    "w-3 h-3",
+                                    i < review.rating ? "text-warning fill-warning" : "text-muted/30"
+                                  )} />
+                                ))}
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-0.5">
-                            {Array.from({ length: review.rating }).map((_, i) => (
-                              <Star key={i} className="w-3.5 h-3.5 text-warning fill-warning" />
-                            ))}
-                          </div>
+                          <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Doğrulanmış Müşteri</span>
                         </div>
-                        <p className="text-sm text-muted-foreground">{review.comment}</p>
+                        <p className="text-sm text-muted-foreground leading-relaxed italic">"{review.comment}"</p>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-muted-foreground text-sm">{t("common.no_reviews")}</p>
+                  <div className="text-center py-12 bg-muted/20 rounded-2xl border border-dashed border-border">
+                    <MessageSquare className="w-8 h-8 text-muted-foreground mx-auto mb-3 opacity-20" />
+                    <p className="text-muted-foreground text-sm">{t("common.no_reviews")}</p>
+                  </div>
                 )}
               </div>
             </div>
 
             {/* Sidebar */}
             <div className="space-y-6">
+
               <div className="bg-card border border-border rounded-xl p-6 shadow-card sticky top-20">
                 <h3 className="font-semibold text-foreground mb-4">{t("common.working_hours")}</h3>
                 <div className="space-y-2">

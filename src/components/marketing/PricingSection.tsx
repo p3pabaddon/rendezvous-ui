@@ -30,7 +30,9 @@ const plans = [
       t("pricing.premium_feature5"),
       t("pricing.premium_feature6"),
       t("pricing.premium_feature7"),
-      t("pricing.premium_feature8")
+      t("pricing.premium_feature8"),
+      t("pricing.premium_feature9"),
+      t("pricing.premium_feature10")
     ],
     cta: t("pricing.premium_cta"), variant: "default" as const,
   },

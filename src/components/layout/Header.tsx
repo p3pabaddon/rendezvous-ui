@@ -28,7 +28,6 @@ export function Header() {
   const navLinks = [
     { href: "/", label: t("nav.home") },
     { href: "/isletmeler", label: t("nav.businesses") },
-    { href: "/isletmeler-icin", label: t("nav.for_business") },
     { href: "/hakkimizda", label: t("nav.about") },
     { href: "/iletisim", label: t("nav.contact") },
     { href: "/sss", label: t("nav.faq") },
@@ -59,15 +58,26 @@ export function Header() {
             ))}
           </nav>
 
-          <div className="hidden md:flex items-center gap-2">
-            <LanguageToggle />
-            <ThemeToggle />
-            <NotificationBell />
-            <Link to="/isletme-basvuru">
-              <Button variant="ghost" size="sm" className="text-accent hover:text-accent">
-                {t("nav.business_apply")}
-              </Button>
-            </Link>
+          <div className="hidden md:flex items-center gap-2 lg:gap-4">
+            <div className="flex items-center gap-1.5 mr-2 pr-2 border-r border-border/50">
+              <LanguageToggle />
+              <ThemeToggle />
+              <NotificationBell />
+            </div>
+            
+            <div className="flex items-center gap-4">
+              <Link to="/isletmeler-icin" className="text-sm font-semibold text-muted-foreground hover:text-accent transition-colors">
+                {t("nav.for_business")}
+              </Link>
+              
+              <Link to="/isletme-basvuru">
+                <Button variant="ghost" size="sm" className="text-accent hover:text-accent font-bold tracking-tight px-0">
+                  {t("nav.business_apply")}
+                </Button>
+              </Link>
+            </div>
+
+            <div className="w-[1px] h-4 bg-border/50 mx-1" />
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -84,8 +94,8 @@ export function Header() {
                   <DropdownMenuItem onClick={() => navigate("/profil")}>
                     <User className="w-4 h-4 mr-2" /> {t("common.profile")}
                   </DropdownMenuItem>
-                  {["asrinaltan04@gmail.com", "admin@admin.com"].includes(user.email || "") && (
-                    <DropdownMenuItem onClick={() => navigate("/admin")} className="text-primary font-semibold">
+                  {["asrinaltan04@gmail.com", "admin@admin.com", "testadmin@rendezvous.com"].includes(user.email || "") && (
+                    <DropdownMenuItem onClick={() => navigate("/admin")} className="text-primary font-semibold bg-primary/5">
                       <Shield className="w-4 h-4 mr-2" /> {t("common.admin_panel")}
                     </DropdownMenuItem>
                   )}
@@ -130,6 +140,20 @@ export function Header() {
                 {link.label}
               </Link>
             ))}
+            <Link
+              to="/isletmeler-icin"
+              className="block px-3 py-2 text-sm font-bold text-accent hover:bg-accent/5 rounded-md"
+              onClick={() => setMobileOpen(false)}
+            >
+              {t("nav.for_business")}
+            </Link>
+            <Link
+              to="/isletme-basvuru"
+              className="block px-3 py-2 text-sm font-bold text-accent hover:bg-accent/5 rounded-md"
+              onClick={() => setMobileOpen(false)}
+            >
+              {t("nav.business_apply")}
+            </Link>
             {user && (
               <>
                 <Link
@@ -139,13 +163,22 @@ export function Header() {
                 >
                   {t("common.profile")}
                 </Link>
-                <Link
-                  to="/dashboard"
-                  className="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground rounded-md hover:bg-muted"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  {t("common.dashboard")}
-                </Link>
+                  <Link
+                    to="/dashboard"
+                    className="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground rounded-md hover:bg-muted"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    {t("common.dashboard")}
+                  </Link>
+                  {["asrinaltan04@gmail.com", "admin@admin.com", "testadmin@rendezvous.com", "info@randevudunyasi.com"].includes(user.email || "") && (
+                    <Link
+                      to="/admin"
+                      className="block px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/10 rounded-md"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      <Shield className="w-4 h-4 inline mr-2" /> {t("common.admin_panel")}
+                    </Link>
+                  )}
               </>
             )}
             <div className="flex items-center gap-2 pt-3 px-3">

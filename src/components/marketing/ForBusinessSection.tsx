@@ -1,16 +1,20 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { BarChart3, Calendar, Users, Shield, TrendingUp, Smartphone } from "lucide-react";
 import { t } from "@/lib/translations";
 import { ScrollReveal } from "@/hooks/useScrollReveal";
+import { 
+  Calendar, Users, BarChart3, Shield, 
+  TrendingUp, Smartphone, Cpu, Package, 
+  Gift, Zap 
+} from "lucide-react";
 
 const features = [
   { icon: Calendar, title: t("business.feat_appointment_title"), desc: t("business.feat_appointment_desc") },
-  { icon: Users, title: t("business.feat_customers_title"), desc: t("business.feat_customers_desc") },
-  { icon: BarChart3, title: t("business.feat_reports_title"), desc: t("business.feat_reports_desc") },
-  { icon: Shield, title: t("business.feat_noshow_title"), desc: t("business.feat_noshow_desc") },
-  { icon: TrendingUp, title: t("business.feat_boost_title"), desc: t("business.feat_boost_desc") },
   { icon: Smartphone, title: t("business.feat_mobile_title"), desc: t("business.feat_mobile_desc") },
+  { icon: Cpu, title: t("business.feature4_title"), desc: t("business.feature4_desc") },
+  { icon: Package, title: t("business.feature5_title"), desc: t("business.feature5_desc") },
+  { icon: Gift, title: t("business.feature6_title"), desc: t("business.feature6_desc") },
+  { icon: Shield, title: t("business.feat_noshow_title"), desc: t("business.feat_noshow_desc") },
 ];
 
 export function ForBusinessSection() {

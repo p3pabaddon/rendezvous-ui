@@ -3,20 +3,26 @@ import { t } from "@/lib/translations";
 
 export function Footer() {
   return (
-    <footer className="bg-slate-950 text-slate-50">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-12">
+    <footer className="relative bg-slate-950 text-slate-50 overflow-hidden border-t border-white/5">
+      {/* Texture Overlay */}
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-overlay" style={{ backgroundImage: 'url("/global_texture.png")' }} />
+      
+      {/* Radial Glow */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[300px] bg-accent/5 blur-[120px] rounded-full pointer-events-none" />
+
+      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 lg:gap-16">
           {/* Brand */}
           <div className="lg:col-span-2">
-            <Link to="/" className="flex items-center gap-2 mb-4">
-              <div className="w-9 h-9 bg-accent rounded-lg flex items-center justify-center">
-                <span className="text-accent-foreground font-heading text-lg">R</span>
+            <Link to="/" className="flex items-center gap-3 mb-6 group">
+              <div className="w-11 h-11 bg-accent rounded-xl flex items-center justify-center shadow-lg shadow-accent/20 group-hover:scale-105 transition-transform duration-300">
+                <span className="text-accent-foreground font-heading text-xl">R</span>
               </div>
-              <span className="font-heading text-xl">
+              <span className="font-heading text-2xl tracking-tight">
                 Randevu<span className="text-accent">Dunyasi</span>
               </span>
             </Link>
-            <p className="text-sm opacity-70 max-w-xs leading-relaxed">
+            <p className="text-base text-slate-400 max-w-xs leading-relaxed">
               {t("footer.desc")}
             </p>
           </div>

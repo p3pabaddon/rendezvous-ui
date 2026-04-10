@@ -12,10 +12,13 @@ import { FavoriteButton } from "@/components/FavoriteButton";
 import { supabase } from "@/lib/supabase";
 import {
   Calendar, Clock, Star, XCircle, MessageSquare, User,
-  MapPin, CheckCircle, Heart, RefreshCw
+  MapPin, CheckCircle, Heart, RefreshCw, Gift, Ticket, Share2
 } from "lucide-react";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
+import { getMyPromoCodes, claimReferral } from "@/lib/api";
+import { StampCard } from "@/components/loyalty/StampCard";
+import { ReferralWidget } from "@/components/loyalty/ReferralWidget";
 
 const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   pending: { label: "Bekliyor", variant: "secondary" },
@@ -35,6 +38,9 @@ const ProfilPage = () => {
   const [reviewModal, setReviewModal] = useState<{ open: boolean; businessId: string; businessName: string; appointmentId: string }>({
     open: false, businessId: "", businessName: "", appointmentId: ""
   });
+  const [loyaltyData, setLoyaltyData] = useState<any[]>([]);
+  const [promoCodes, setPromoCodes] = useState<any[]>([]);
+  const [loyaltyPrograms, setLoyaltyPrograms] = useState<any[]>([]);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/giris");
@@ -48,7 +54,7 @@ const ProfilPage = () => {
     if (!user) return;
     setLoading(true);
     try {
-      const [aptsRes, reviewsRes, favsRes] = await Promise.all([
+      const [aptsRes, reviewsRes, favsRes, loyaltyRes, promosRes, programsRes] = await Promise.all([
         supabase
           .from("appointments")
           .select("*, businesses(name, slug, city)")
@@ -64,11 +70,24 @@ const ProfilPage = () => {
           .select("*, businesses(id, name, slug, city, category, rating, review_count, image_url)")
           .eq("user_id", user.id)
           .order("created_at", { ascending: false }),
+        supabase
+          .from("customer_loyalty")
+          .select("*, businesses(name, slug)")
+          .eq("customer_id", user.id),
+        getMyPromoCodes(),
+        supabase
+          .from("loyalty_programs")
+          .select("*")
+          .eq("is_active", true)
       ]);
       setAppointments(aptsRes.data || []);
       setReviews(reviewsRes.data || []);
       setFavorites(favsRes.data || []);
-    } catch {
+      setLoyaltyData(loyaltyRes.data || []);
+      setPromoCodes(promosRes || []);
+      setLoyaltyPrograms(programsRes.data || []);
+    } catch (err) {
+      console.error(err);
       toast({ title: "Veri yüklenemedi", variant: "destructive" });
     }
     setLoading(false);
@@ -146,6 +165,9 @@ const ProfilPage = () => {
               </TabsTrigger>
               <TabsTrigger value="reviews">
                 Yorumlarım ({reviews.length})
+              </TabsTrigger>
+              <TabsTrigger value="loyalty" className="text-accent font-bold">
+                <Gift className="w-3.5 h-3.5 mr-1" /> Ödüller & Davet
               </TabsTrigger>
             </TabsList>
 
@@ -326,6 +348,70 @@ const ProfilPage = () => {
                   ))}
                 </div>
               )}
+            </TabsContent>
+
+            <TabsContent value="loyalty" className="space-y-8">
+              {/* Referral Widget */}
+              <ReferralWidget referralCode={user?.id.slice(0, 8).toUpperCase() || "REF123"} />
+
+              {/* Active Promo Codes */}
+              {promoCodes.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="font-heading text-lg flex items-center gap-2">
+                    <Ticket className="w-5 h-5 text-accent" /> Hediyelerin & Kuponların
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {promoCodes.map((promo) => (
+                      <div key={promo.id} className="bg-card border-2 border-dashed border-accent/20 rounded-xl p-4 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 bg-accent text-accent-foreground px-2 py-1 text-[10px] font-bold uppercase rounded-bl-lg">
+                          Aktif
+                        </div>
+                        <p className="text-xs text-muted-foreground font-mono mb-1">{promo.code}</p>
+                        <h4 className="font-bold text-foreground">
+                          {promo.discount_type === 'fixed' ? `₺${promo.discount_value}` : `%${promo.discount_value}`} İndirim
+                        </h4>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {promo.business?.name ? `${promo.business.name} işletmesinde geçerli` : "Tüm işletmelerde geçerli"}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-2 italic">
+                          Son gün: {format(new Date(promo.expires_at), "d MMMM", { locale: tr })}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Loyalty Stamp Cards */}
+              <div className="space-y-4">
+                <h3 className="font-heading text-lg flex items-center gap-2">
+                  <Gift className="w-5 h-5 text-primary" /> Dijital Sadakat Kartların
+                </h3>
+                {loyaltyData.length === 0 ? (
+                  <div className="bg-card border border-border rounded-xl p-8 text-center">
+                    <Ticket className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+                    <p className="text-muted-foreground">Henüz bir sadakat programına katılmadınız</p>
+                    <p className="text-xs text-muted-foreground mt-1">Randevularınız tamamlandıkça damgalarınız burada görünecektir.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    {loyaltyData.map((loyalty) => {
+                      const program = loyaltyPrograms.find(p => p.business_id === loyalty.business_id);
+                      if (!program) return null;
+                      
+                      return (
+                        <StampCard 
+                          key={loyalty.id}
+                          businessName={loyalty.businesses?.name}
+                          currentStamps={loyalty.current_stamps}
+                          targetStamps={program.target_stamps}
+                          rewardTitle={program.reward_title}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </TabsContent>
           </Tabs>
         </div>

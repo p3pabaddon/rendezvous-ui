@@ -95,6 +95,11 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Manrope', sans-serif;
+    /* Global Luxury Texture */
+    background-image: url("/global_texture.png");
+    background-repeat: repeat;
+    background-size: 400px;
+    background-attachment: fixed;
   }
 
   h1, h2, h3, h4, h5, h6 {

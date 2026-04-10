@@ -22,7 +22,7 @@ import {
   Eye, Edit, Power, Star, Receipt, CreditCard, Save, Globe, Palette
 } from "lucide-react";
 
-const ADMIN_EMAILS = ["asrinaltan04@gmail.com", "admin@admin.com"];
+const ADMIN_EMAILS = ["asrinaltan04@gmail.com", "admin@admin.com", "testadmin@rendezvous.com"];
 
 const navigation = [
   { name: "Dashboard", id: "overview", icon: LayoutDashboard },

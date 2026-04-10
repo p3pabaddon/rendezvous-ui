@@ -192,7 +192,12 @@ const IsletmelerPage = () => {
                         <h3 className="font-semibold text-foreground group-hover:text-accent transition-colors">
                           {biz.name}
                         </h3>
-                        <span className="text-xs text-muted-foreground">{biz.price_range}</span>
+                        <span className="text-sm font-semibold text-primary">{biz.category}</span>
+                        {biz.is_featured && (
+                          <Badge className="ml-2 bg-accent text-accent-foreground border-none">
+                            <Star className="w-3 h-3 mr-1 fill-current" /> Öne Çıkan
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground mb-3">{biz.category}</p>
                       <div className="flex items-center gap-4 text-sm">

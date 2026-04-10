@@ -4,13 +4,23 @@ import { tr } from "date-fns/locale";
 export function generateTimeSlots(startTime: string, endTime: string, interval: number = 30): string[] {
   const slots: string[] = [];
   
-  if (!startTime || !endTime || startTime.toLowerCase().includes("kapal") || endTime.toLowerCase().includes("kapal")) {
+  if (!startTime || !endTime) return [];
+  
+  const startStr = String(startTime);
+  const endStr = String(endTime);
+
+  if (startStr.toLowerCase().includes("kapal") || endStr.toLowerCase().includes("kapal")) {
     return [];
   }
 
-  // Parse hours and minutes
-  const [startH, startM] = startTime.split(":").map(Number);
-  const [endH, endM] = endTime.split(":").map(Number);
+  // Parse hours and minutes safely
+  const startParts = startStr.split(":");
+  const endParts = endStr.split(":");
+  
+  if (startParts.length < 2 || endParts.length < 2) return [];
+
+  const [startH, startM] = startParts.map(Number);
+  const [endH, endM] = endParts.map(Number);
 
   let current = new Date();
   current.setHours(startH, startM, 0, 0);
@@ -29,18 +39,85 @@ export function generateTimeSlots(startTime: string, endTime: string, interval: 
 export function getWorkingHoursForDay(workingHours: any, date: Date | undefined): { start: string; end: string } | null {
   if (!workingHours || !date) return null;
 
-  const dayName = format(date, "EEEE", { locale: tr }); // e.g., "Pazartesi"
-  const hours = workingHours[dayName];
+  const dayNameEN = format(date, "EEEE").toLowerCase();
+  const dayNameTR = format(date, "EEEE", { locale: tr }).toLowerCase();
 
-  if (!hours || typeof hours !== "string" || hours.toLowerCase().includes("kapal")) {
-    return null;
+  const DAY_MAP: Record<string, string[]> = {
+    "monday": ["pazartesi", "monday", "mon", "pzt"],
+    "tuesday": ["salı", "tuesday", "tue", "sal"],
+    "wednesday": ["çarşamba", "wednesday", "wed", "çar"],
+    "thursday": ["perşembe", "thursday", "thu", "per"],
+    "friday": ["cuma", "friday", "fri", "cum"],
+    "saturday": ["cumartesi", "saturday", "sat", "cmt"],
+    "sunday": ["pazar", "sunday", "sun", "paz"]
+  };
+
+  // Find the relevant mapping for the English day name
+  const acceptableKeys = DAY_MAP[dayNameEN] || [dayNameEN, dayNameTR];
+  
+  // Try to find a key in the workingHours object that matches any of our acceptable keys (case-insensitive)
+  const foundKey = Object.keys(workingHours).find(k => 
+    acceptableKeys.includes(k.toLowerCase())
+  );
+
+  const hours = foundKey ? workingHours[foundKey] : null;
+  if (!hours) return null;
+
+  let start = "";
+  let end = "";
+
+  if (typeof hours === 'string') {
+    if (hours.toLowerCase().includes("kapal")) return null;
+    const parts = hours.split("-").map(p => p.trim());
+    if (parts.length < 2) return null;
+    [start, end] = parts;
+  } else if (typeof hours === 'object') {
+    if (hours.closed || hours.is_closed) return null;
+    start = hours.start || hours.startTime || "";
+    end = hours.end || hours.endTime || "";
   }
 
-  // Expecting format "09:00 - 18:00"
-  const parts = hours.split("-").map(p => p.trim());
-  if (parts.length !== 2) return null;
+  if (!start || !end) return null;
+  return { start, end };
+}
 
-  return { start: parts[0], end: parts[1] };
+/**
+ * Dynamic Pricing Logic: Calculates the effective price based on day/time rules.
+ * Default Rules:
+ * - Weekends (Sat, Sun): +10% Peak Surcharge
+ * - Slow Days (Tue, Wed): -10% Off-Peak Discount
+ */
+export function calculateSmartPrice(basePrice: number, date: Date | undefined): { 
+  price: number, 
+  originalPrice: number, 
+  multiplier: number,
+  label: string | null 
+} {
+  if (!date) return { price: basePrice, originalPrice: basePrice, multiplier: 1, label: null };
+  
+  const day = format(date, "EEEE").toLowerCase();
+  let multiplier = 1;
+  let label = null;
+
+  // Peak Hours: Saturday and Sunday
+  if (day === "saturday" || day === "sunday") {
+    multiplier = 1.1; // +10%
+    label = "Yoğun Saat Artışı (+10%)";
+  } 
+  // Off-Peak: Tuesday and Wednesday
+  else if (day === "tuesday" || day === "wednesday") {
+    multiplier = 0.9; // -10%
+    label = "Sakin Gün İndirimi (-10%)";
+  }
+
+  const finalPrice = Math.round(basePrice * multiplier);
+  
+  return {
+    price: finalPrice,
+    originalPrice: basePrice,
+    multiplier,
+    label
+  };
 }
 
 export function isSlotOccupied(

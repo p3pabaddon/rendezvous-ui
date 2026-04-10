@@ -18,13 +18,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
+import { 
   Calendar, Clock, Users, TrendingUp, CheckCircle, XCircle,
   AlertCircle, Plus, Trash2, BarChart3, Settings, Save,
+  LayoutDashboard, List
 } from "lucide-react";
 import { getMyBusiness, getBusinessAppointments, updateAppointmentStatus, getBusinessStats } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 import { ImageUpload } from "@/components/ImageUpload";
+import { WeekView } from "@/components/dashboard/WeekView";
+import { WaitlistManager } from "@/components/dashboard/WaitlistManager";
 
 const statusMap: Record<string, { label: string; color: string }> = {
   pending: { label: "Bekliyor", color: "bg-yellow-100 text-yellow-800" },
@@ -40,6 +43,7 @@ const DashboardPage = () => {
   const [business, setBusiness] = useState<any>(null);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [allAppointments, setAllAppointments] = useState<any[]>([]);
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("calendar");
   const [services, setServices] = useState<any[]>([]);
   const [staffList, setStaffList] = useState<any[]>([]);
   const [stats, setStats] = useState({ totalAppointments: 0, todayAppointments: 0, pendingAppointments: 0, totalRevenue: 0 });
@@ -272,6 +276,9 @@ const DashboardPage = () => {
           <Tabs defaultValue="appointments" className="space-y-6">
             <TabsList className="bg-card border border-border">
               <TabsTrigger value="appointments">Randevular</TabsTrigger>
+              <TabsTrigger value="waitlist">
+                <Users className="w-4 h-4 mr-1" /> Bekleme Listesi
+              </TabsTrigger>
               <TabsTrigger value="analytics">
                 <BarChart3 className="w-4 h-4 mr-1" /> Analiz
               </TabsTrigger>
@@ -285,8 +292,28 @@ const DashboardPage = () => {
             {/* Appointments Tab */}
             <TabsContent value="appointments">
               <div className="bg-card border border-border rounded-xl">
-                <div className="p-4 border-b border-border flex items-center justify-between">
-                  <h3 className="font-semibold text-foreground">Randevular</h3>
+                <div className="p-4 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <h3 className="font-semibold text-foreground">Randevular</h3>
+                    <div className="flex items-center bg-muted/50 p-1 rounded-lg border border-border">
+                      <Button 
+                        variant={viewMode === "calendar" ? "secondary" : "ghost"} 
+                        size="sm" 
+                        className="h-8 px-3 rounded-md"
+                        onClick={() => setViewMode("calendar")}
+                      >
+                        <LayoutDashboard className="w-4 h-4 mr-1.5" /> Takvim
+                      </Button>
+                      <Button 
+                        variant={viewMode === "list" ? "secondary" : "ghost"} 
+                        size="sm" 
+                        className="h-8 px-3 rounded-md"
+                        onClick={() => setViewMode("list")}
+                      >
+                        <List className="w-4 h-4 mr-1.5" /> Liste
+                      </Button>
+                    </div>
+                  </div>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -298,7 +325,17 @@ const DashboardPage = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                {appointments.length === 0 ? (
+
+                {viewMode === "calendar" ? (
+                  <div className="p-4">
+                    <WeekView 
+                      appointments={appointments} 
+                      onAppointmentClick={(apt) => {
+                        toast({ title: `Randevu: ${apt.customer_name}`, description: `${apt.appointment_time} - ${apt.status}` });
+                      }}
+                    />
+                  </div>
+                ) : appointments.length === 0 ? (
                   <div className="p-8 text-center text-muted-foreground">Henüz randevu yok</div>
                 ) : (
                   <div className="divide-y divide-border">
@@ -341,6 +378,11 @@ const DashboardPage = () => {
                   </div>
                 )}
               </div>
+            </TabsContent>
+            
+            {/* Waitlist Tab */}
+            <TabsContent value="waitlist">
+              <WaitlistManager businessId={business.id} />
             </TabsContent>
 
             {/* Analytics Tab */}
